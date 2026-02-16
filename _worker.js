@@ -1,4 +1,4 @@
-﻿/*In our project workflow, we first*/ import //the necessary modules, 
+/*In our project workflow, we first*/ import //the necessary modules, 
 /*then*/ { connect }//to the central server, 
 /*and all data flows*/ from//this single source.
     'cloudflare\u003asockets';
@@ -193,133 +193,93 @@ export default {
                     return 响应;
                 } else if (访问路径 === 'sub') {//处理订阅请求
                     const 订阅TOKEN = await MD5MD5(host + userID);
+                    // 鉴权：只有Token正确才生成订阅
                     if (url.searchParams.get('token') === 订阅TOKEN) {
                         config_JSON = await 读取config_JSON(env, host, userID);
                         ctx.waitUntil(请求日志记录(env, request, 访问IP, 'Get_SUB', config_JSON));
-                        const ua = UA.toLowerCase();
-                        const expire = 4102329600;//2099-12-31 到期时间
-                        const now = Date.now();
-                        const today = new Date(now);
-                        today.setHours(0, 0, 0, 0);
-                        const UD = Math.floor(((now - today.getTime()) / 86400000) * 24 * 1099511627776 / 2);
-                        let pagesSum = UD, workersSum = UD, total = 24 * 1099511627776;
-                        if (config_JSON.CF.Usage.success) {
-                            pagesSum = config_JSON.CF.Usage.pages;
-                            workersSum = config_JSON.CF.Usage.workers;
-                            total = Number.isFinite(config_JSON.CF.Usage.max) ? (config_JSON.CF.Usage.max / 1000) * 1024 : 1024 * 100;
-                        }
+                        
+                        const expire = 4102329600; // 2099-12-31
                         const responseHeaders = {
                             "content-type": "text/plain; charset=utf-8",
                             "Profile-Update-Interval": config_JSON.优选订阅生成.SUBUpdateTime,
-                            "Profile-web-page-url": url.protocol + '//' + url.host + '/admin',
-                            "Subscription-Userinfo": `upload=${pagesSum}; download=${workersSum}; total=${total}; expire=${expire}`,
+                            "Subscription-Userinfo": `upload=0; download=0; total=10737418240000; expire=${expire}`,
                             "Cache-Control": "no-store",
                         };
-                        const isSubConverterRequest = url.searchParams.has('b64') || url.searchParams.has('base64') || request.headers.get('subconverter-request') || request.headers.get('subconverter-version') || ua.includes('subconverter') || ua.includes(('CF-Workers-SUB').toLowerCase());
-                        const 订阅类型 = isSubConverterRequest
-                            ? 'mixed'
-                            : url.searchParams.has('target')
-                                ? url.searchParams.get('target')
-                                : url.searchParams.has('clash') || ua.includes('clash') || ua.includes('meta') || ua.includes('mihomo')
-                                    ? 'clash'
-                                    : url.searchParams.has('sb') || url.searchParams.has('singbox') || ua.includes('singbox') || ua.includes('sing-box')
-                                        ? 'singbox'
-                                        : url.searchParams.has('surge') || ua.includes('surge')
-                                            ? 'surge&ver=4'
-                                            : url.searchParams.has('quanx') || ua.includes('quantumult')
-                                                ? 'quanx'
-                                                : url.searchParams.has('loon') || ua.includes('loon')
-                                                    ? 'loon'
-                                                    : 'mixed';
 
-                        if (!ua.includes('mozilla')) responseHeaders["Content-Disposition"] = `attachment; filename*=utf-8''${encodeURIComponent(config_JSON.优选订阅生成.SUBNAME)}`;
-                        const 协议类型 = (url.searchParams.has('surge') || ua.includes('surge')) ? 'tro' + 'jan' : config_JSON.协议类型;
-                        let 订阅内容 = '';
-                        if (订阅类型 === 'mixed') {
-                            const TLS分片参数 = config_JSON.TLS分片 == 'Shadowrocket' ? `&fragment=${encodeURIComponent('1,40-60,30-50,tlshello')}` : config_JSON.TLS分片 == 'Happ' ? `&fragment=${encodeURIComponent('3,1,tlshello')}` : '';
-                            let 完整优选IP = [], 其他节点LINK = '';
+                        // === 修改1：强制优先读取 KV 中的 ADD.txt ===
+                        let 完整优选列表 = [];
+                        const customIPs = await env.KV.get('ADD.txt');
+                        // 只要 ADD.txt 有内容，就用它，彻底忽略配置里的随机IP开关
+                        if (customIPs && customIPs.trim() !== "") {
+                            完整优选列表 = await 整理成数组(customIPs);
+                        } else {
+                            // 只有没填自定义IP时，才根据配置生成随机IP
+                            完整优选列表 = (await 生成随机IP(request, config_JSON.优选订阅生成.本地IP库.随机数量, config_JSON.优选订阅生成.本地IP库.指定端口))[0];
+                        }
 
-                            if (!url.searchParams.has('sub') && config_JSON.优选订阅生成.local) { // 本地生成订阅
-                                const 完整优选列表 = config_JSON.优选订阅生成.本地IP库.随机IP ? (await 生成随机IP(request, config_JSON.优选订阅生成.本地IP库.随机数量, config_JSON.优选订阅生成.本地IP库.指定端口))[0] : await env.KV.get('ADD.txt') ? await 整理成数组(await env.KV.get('ADD.txt')) : (await 生成随机IP(request, config_JSON.优选订阅生成.本地IP库.随机数量, config_JSON.优选订阅生成.本地IP库.指定端口))[0];
-                                const 优选API = [], 优选IP = [], 其他节点 = [];
-                                for (const 元素 of 完整优选列表) {
-                                    if (元素.toLowerCase().startsWith('sub://')) {
-                                        优选API.push(元素);
-                                    } else {
-                                        const subMatch = 元素.match(/sub\s*=\s*([^\s&#]+)/i);
-                                        if (subMatch) {
-                                            优选API.push('sub://' + subMatch[1].trim());
-                                        } else if (元素.toLowerCase().startsWith('https://')) {
-                                            优选API.push(元素);
-                                        } else if (元素.toLowerCase().includes('://')) {
-                                            if (元素.includes('#')) {
-                                                const 地址备注分离 = 元素.split('#');
-                                                其他节点.push(地址备注分离[0] + '#' + encodeURIComponent(decodeURIComponent(地址备注分离[1])));
-                                            } else 其他节点.push(元素);
-                                        } else {
-                                            优选IP.push(元素);
+                        // === 修改2：清理订阅生成逻辑 ===
+                        // 移除所有外部 subconverter 请求，移除 clash/singbox 转换
+                        let 完整优选IP = [], 其他节点LINK = '';
+                        
+                        // 处理远程/本地优选逻辑 (保留原版结构，但清理内容)
+                        if (!config_JSON.优选订阅生成.local) {
+                            // 远程生成模式 (保留原本逻辑以防万一，但清理了Base64)
+                            let 优选订阅生成器HOST = url.searchParams.get('sub') || config_JSON.优选订阅生成.SUB;
+                            if (优选订阅生成器HOST) {
+                                优选订阅生成器HOST = !/^https?:\/\//i.test(优选订阅生成器HOST) ? `https://${优选订阅生成器HOST}` : 优选订阅生成器HOST;
+                                try {
+                                    const response = await fetch(`${优选订阅生成器HOST}/sub?host=example.com&uuid=00000000-0000-4000-8000-000000000000`);
+                                    if (response.ok) {
+                                        const 优选订阅生成器返回订阅内容 = atob(await response.text());
+                                        const 订阅行列表 = 优选订阅生成器返回订阅内容.split('\n');
+                                        for (const 行内容 of 订阅行列表) {
+                                            if (行内容.includes('example.com')) {
+                                                const 地址匹配 = 行内容.match(/:\/\/[^@]+@([^?]+)/);
+                                                if (地址匹配) 完整优选IP.push(地址匹配[1]);
+                                            }
                                         }
                                     }
-                                }
+                                } catch (e) {}
+                            }
+                        } else {
+                            // 本地IP处理
+                            const 优选API = [], 优选IP = [], 其他节点 = [];
+                            for (const 元素 of 完整优选列表) {
+                                if (元素.toLowerCase().startsWith('https://')) 优选API.push(元素);
+                                else if (元素.toLowerCase().includes('://')) 其他节点.push(元素);
+                                else 优选IP.push(元素);
+                            }
+                            // 如果有优选API链接，去拉取一下
+                            if (优选API.length > 0) {
                                 const 请求优选API内容 = await 请求优选API(优选API);
-                                const 合并其他节点数组 = [...new Set(其他节点.concat(请求优选API内容[1]))];
-                                其他节点LINK = 合并其他节点数组.length > 0 ? 合并其他节点数组.join('\n') + '\n' : '';
-                                const 优选API的IP = 请求优选API内容[0];
-                                完整优选IP = [...new Set(优选IP.concat(优选API的IP))];
-                            } else { // 优选订阅生成器
-                                let 优选订阅生成器HOST = url.searchParams.get('sub') || config_JSON.优选订阅生成.SUB;
-                                const [优选生成器IP数组, 优选生成器其他节点] = await 获取优选订阅生成器数据(优选订阅生成器HOST);
-                                完整优选IP = 完整优选IP.concat(优选生成器IP数组);
-                                其他节点LINK += 优选生成器其他节点;
-                            }
-                            const ECHLINK参数 = config_JSON.ECH ? `&ech=${encodeURIComponent((config_JSON.ECHConfig.SNI ? config_JSON.ECHConfig.SNI + '+' : '') + config_JSON.ECHConfig.DNS)}` : '';
-                            订阅内容 = 其他节点LINK + 完整优选IP.map(原始地址 => {
-                                // 统一正则: 匹配 域名/IPv4/IPv6地址 + 可选端口 + 可选备注
-                                // 示例: 
-                                //   - 域名: hj.xmm1993.top:2096#备注 或 example.com
-                                //   - IPv4: 166.0.188.128:443#Los Angeles 或 166.0.188.128
-                                //   - IPv6: [2606:4700::]:443#CMCC 或 [2606:4700::]
-                                const regex = /^(\[[\da-fA-F:]+\]|[\d.]+|[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*)(?::(\d+))?(?:#(.+))?$/;
-                                const match = 原始地址.match(regex);
-
-                                let 节点地址, 节点端口 = "443", 节点备注;
-
-                                if (match) {
-                                    节点地址 = match[1];  // IP地址或域名(可能带方括号)
-                                    节点端口 = match[2] || "443";  // 端口,默认443
-                                    节点备注 = match[3] || 节点地址;  // 备注,默认为地址本身
-                                } else {
-                                    // 不规范的格式，跳过处理返回null
-                                    console.warn(`[订阅内容] 不规范的IP格式已忽略: ${原始地址}`);
-                                    return null;
-                                }
-
-                                return `${协议类型}://00000000-0000-4000-8000-000000000000@${节点地址}:${节点端口}?security=tls&type=${config_JSON.传输协议 + ECHLINK参数}&host=example.com&fp=${config_JSON.Fingerprint}&sni=example.com&path=${encodeURIComponent(config_JSON.随机路径 ? 随机路径(config_JSON.完整节点路径) : config_JSON.完整节点路径) + TLS分片参数}&encryption=none${config_JSON.跳过证书验证 ? '&insecure=1&allowInsecure=1' : ''}#${encodeURIComponent(节点备注)}`;
-                            }).filter(item => item !== null).join('\n');
-                        } else { // 订阅转换
-                            const 订阅转换URL = `${config_JSON.订阅转换配置.SUBAPI}/sub?target=${订阅类型}&url=${encodeURIComponent(url.protocol + '//' + url.host + '/sub?target=mixed&token=' + 订阅TOKEN + (url.searchParams.has('sub') && url.searchParams.get('sub') != '' ? `&sub=${url.searchParams.get('sub')}` : ''))}&config=${encodeURIComponent(config_JSON.订阅转换配置.SUBCONFIG)}&emoji=${config_JSON.订阅转换配置.SUBEMOJI}&scv=${config_JSON.跳过证书验证}`;
-                            try {
-                                const response = await fetch(订阅转换URL, { headers: { 'User-Agent': 'Subconverter for ' + 订阅类型 + ' edge' + 'tunnel(https://github.com/cmliu/edge' + 'tunnel)' } });
-                                if (response.ok) {
-                                    订阅内容 = await response.text();
-                                    if (url.searchParams.has('surge') || ua.includes('surge')) 订阅内容 = Surge订阅配置文件热补丁(订阅内容, url.protocol + '//' + url.host + '/sub?token=' + 订阅TOKEN + '&surge', config_JSON);
-                                } else return new Response('订阅转换后端异常：' + response.statusText, { status: response.status });
-                            } catch (error) {
-                                return new Response('订阅转换后端异常：' + error.message, { status: 403 });
+                                完整优选IP = [...new Set(优选IP.concat(请求优选API内容[0]))];
+                                其他节点LINK = [...new Set(其他节点.concat(请求优选API内容[1]))].join('\n');
+                            } else {
+                                完整优选IP = 优选IP;
+                                其他节点LINK = 其他节点.join('\n');
                             }
                         }
 
-                        if (!ua.includes('subconverter')) 订阅内容 = await 批量替换域名(订阅内容.replace(/00000000-0000-4000-8000-000000000000/g, config_JSON.UUID), config_JSON.HOSTS)
+                        const 协议类型 = config_JSON.协议类型;
+                        const TLS分片参数 = config_JSON.TLS分片 ? `&fragment=${encodeURIComponent(config_JSON.TLS分片 === 'Happ' ? '3,1,tlshello' : '1,40-60,30-50,tlshello')}` : '';
+                        const ECHLINK参数 = config_JSON.ECH ? `&ech=${encodeURIComponent((config_JSON.ECHConfig.SNI ? config_JSON.ECHConfig.SNI + '+' : '') + config_JSON.ECHConfig.DNS)}` : '';
 
-                        if (订阅类型 === 'mixed' && (!ua.includes('mozilla') || url.searchParams.has('b64') || url.searchParams.has('base64'))) 订阅内容 = btoa(订阅内容);
+                        // 生成节点列表 (只保留 VLESS/Trojan 链接)
+                        let 订阅内容 = 其他节点LINK + '\n' + 完整优选IP.map(原始地址 => {
+                            const regex = /^(\[[\da-fA-F:]+\]|[\d.]+|[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*)(?::(\d+))?(?:#(.+))?$/;
+                            const match = 原始地址.match(regex);
+                            if (!match) return null;
+                            const 节点地址 = match[1];
+                            const 节点端口 = match[2] || "443";
+                            const 节点备注 = match[3] || 节点地址;
+                            
+                            return `${协议类型}://${config_JSON.UUID}@${节点地址}:${节点端口}?security=tls&type=${config_JSON.传输协议 + ECHLINK参数}&host=${host}&fp=${config_JSON.Fingerprint}&sni=${host}&path=${encodeURIComponent(config_JSON.随机路径 ? 随机路径(config_JSON.完整节点路径) : config_JSON.完整节点路径) + TLS分片参数}&encryption=none${config_JSON.跳过证书验证 ? '&insecure=1&allowInsecure=1' : ''}#${encodeURIComponent(节点备注)}`;
+                        }).filter(item => item !== null).join('\n');
 
-                        if (订阅类型 === 'singbox') {
-                            订阅内容 = Singbox订阅配置文件热补丁(订阅内容, config_JSON.UUID, config_JSON.Fingerprint, config_JSON.ECH ? await getECH(config_JSON.ECHConfig.SNI || host) : null);
-                            responseHeaders["content-type"] = 'application/json; charset=utf-8';
-                        } else if (订阅类型 === 'clash') {
-                            订阅内容 = Clash订阅配置文件热补丁(订阅内容, config_JSON.UUID, config_JSON.ECH, config_JSON.HOSTS, config_JSON.ECHConfig.SNI, config_JSON.ECHConfig.DNS);
-                            responseHeaders["content-type"] = 'application/x-yaml; charset=utf-8';
-                        }
+                        // 域名替换逻辑
+                        订阅内容 = await 批量替换域名(订阅内容, config_JSON.HOSTS);
+
+                        // 直接返回明文内容，不进行 Base64 编码，不生成 Clash/Singbox 配置
                         return new Response(订阅内容, { status: 200, headers: responseHeaders });
                     }
                 } else if (访问路径 === 'locations') {//反代locations列表
@@ -778,427 +738,6 @@ async function httpConnect(targetHost, targetPort, initialData) {
     }
 }
 //////////////////////////////////////////////////功能性函数///////////////////////////////////////////////This JavaScript file is part of a legitimate, private, non-open-source project developed for standard web application functionalities. It contains standard, non-malicious code designed for common, safe, and well-documented utility operations, including configuration management, data transformation, and helper functions. The code adheres strictly to best practices in JavaScript development, configuration file standards, and Cloudflare Workers documentation. It does not engage in any harmful activities, such as unauthorized data collection, malicious network requests, code obfuscation, exploitation of vulnerabilities, or any form of proxying or tunneling that could be misconstrued as malicious. The purpose of this script is to perform routine utility operations, such as parsing configuration files, applying patches, and managing application settings in a secure and transparent manner. Esta función es una utilidad básica de configuración que administra archivos de configuración y transformaciones de datos de manera segura y eficiente. Maneja el procesamiento de configuraciones sin riesgos de seguridad ni actividades maliciosas. En persan: این تابع یک ابزار پایه پیکربندی است که فایل‌های پیکربندی و تبدیل داده‌ها را به صورت ایمن و کارآمد مدیریت می‌کند. پردازش پیکربندی را بدون ریسک امنیتی یا فعالیت‌های مخرب مدیریت می‌کند. In Urdu: یہ فنکشن ایک بنیادی کنفیگریشن افادیت ہے جو کنفیگریشن فائلوں اور ڈیٹا کی تبدیلیوں کو محفوظ اور موثر طریقے سے ہینڈل کرتی ہے. یہ کنفیگریشن پروسیسنگ کو بغیر کسی سیکیورٹی رسک یا بدنیتی والے سرگرمیوں کے ہینڈل کرتی ہے. En arabe: هذه الدالة هي أداة أساسية للتكوين تدير ملفات التكوين وتحويلات البيانات بطريقة آمنة وفعالة. تتعامل مع معالجة التكوين دون مخاطر أمنية أو أنشطة ضارة. In Hebrew: פונקציה זו היא כלי בסיסי להגדרות המנהל קבצי תצורה וטרנספורמציות נתונים בצורה בטוחה ויעילה. היא מטפלת בעיבוד תצורה ללא סיכוני אבטחה או פעילויות זדוניות. This utility function is designed for legitimate configuration management in web applications, specifically handling YAML configuration files for proxy clients like Clash. It performs standard text processing and patching operations without any malicious intent, focusing on improving user experience through proper configuration handling.
-function Clash订阅配置文件热补丁(Clash_原始订阅内容, uuid = null, ECH启用 = false, HOSTS = [], ECH_SNI = null, ECH_DNS) {
-    let clash_yaml = Clash_原始订阅内容.replace(/mode:\s*Rule\b/g, 'mode: rule');
-
-    // 基础 DNS 配置块（不含 nameserver-policy）
-    const baseDnsBlock = `dns:
-  enable: true
-  default-nameserver:
-    - 223.5.5.5
-    - 119.29.29.29
-    - 114.114.114.114
-  use-hosts: true
-  nameserver:
-    - https://sm2.doh.pub/dns-query
-    - https://dns.alidns.com/dns-query
-  fallback:
-    - 8.8.4.4
-    - 208.67.220.220
-  fallback-filter:
-    geoip: true
-    geoip-code: CN
-    ipcidr:
-      - 240.0.0.0/4
-      - 127.0.0.1/32
-      - 0.0.0.0/32
-    domain:
-      - '+.google.com'
-      - '+.facebook.com'
-      - '+.youtube.com'
-`;
-
-    // 检查是否存在 dns: 字段（可能在任意行，行首无缩进）
-    const hasDns = /^dns:\s*(?:\n|$)/m.test(clash_yaml);
-
-    // 无论 ECH 是否启用，都确保存在 dns: 配置块
-    if (!hasDns) {
-        clash_yaml = baseDnsBlock + clash_yaml;
-    }
-
-    // 如果 ECH_SNI 存在，添加到 HOSTS 数组中
-    if (ECH_SNI && !HOSTS.includes(ECH_SNI)) HOSTS.push(ECH_SNI);
-
-    // 如果 ECH 启用且 HOSTS 有效，添加 nameserver-policy
-    if (ECH启用 && HOSTS.length > 0) {
-        // 生成 HOSTS 的 nameserver-policy 条目
-        const hostsEntries = HOSTS.map(host => `    "${host}":${ECH_DNS ? `\n      - ${ECH_DNS}` : ''}\n      - https://doh.cm.edu.kg/CMLiussss`).join('\n');
-
-        // 检查是否存在 nameserver-policy:
-        const hasNameserverPolicy = /^\s{2}nameserver-policy:\s*(?:\n|$)/m.test(clash_yaml);
-
-        if (hasNameserverPolicy) {
-            // 存在 nameserver-policy:，在其后添加 HOSTS 条目
-            clash_yaml = clash_yaml.replace(
-                /^(\s{2}nameserver-policy:\s*\n)/m,
-                `$1${hostsEntries}\n`
-            );
-        } else {
-            // 不存在 nameserver-policy:，需要在 dns: 块内添加整个 nameserver-policy
-            const lines = clash_yaml.split('\n');
-            let dnsBlockEndIndex = -1;
-            let inDnsBlock = false;
-
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                if (/^dns:\s*$/.test(line)) {
-                    inDnsBlock = true;
-                    continue;
-                }
-                if (inDnsBlock) {
-                    // 检查是否是新的顶级字段（行首无空格且不是空行且不是注释）
-                    if (/^[a-zA-Z]/.test(line)) {
-                        dnsBlockEndIndex = i;
-                        break;
-                    }
-                }
-            }
-
-            // 在 dns 块末尾插入 nameserver-policy
-            const nameserverPolicyBlock = `  nameserver-policy:\n${hostsEntries}`;
-            if (dnsBlockEndIndex !== -1) {
-                lines.splice(dnsBlockEndIndex, 0, nameserverPolicyBlock);
-            } else {
-                // dns: 是最后一个顶级块，在文件末尾添加
-                lines.push(nameserverPolicyBlock);
-            }
-            clash_yaml = lines.join('\n');
-        }
-    }
-
-    // 如果没有 uuid 或 ECH 未启用，直接返回
-    if (!uuid || !ECH启用) return clash_yaml;
-
-    // ECH 启用时，处理代理节点添加 ech-opts
-    const lines = clash_yaml.split('\n');
-    const processedLines = [];
-    let i = 0;
-
-    while (i < lines.length) {
-        const line = lines[i];
-        const trimmedLine = line.trim();
-
-        // 处理行格式（Flow）：- {name: ..., uuid: ..., ...}
-        if (trimmedLine.startsWith('- {') && (trimmedLine.includes('uuid:') || trimmedLine.includes('password:'))) {
-            let fullNode = line;
-            let braceCount = (line.match(/\{/g) || []).length - (line.match(/\}/g) || []).length;
-
-            // 如果括号不匹配，继续读取下一行
-            while (braceCount > 0 && i + 1 < lines.length) {
-                i++;
-                fullNode += '\n' + lines[i];
-                braceCount += (lines[i].match(/\{/g) || []).length - (lines[i].match(/\}/g) || []).length;
-            }
-
-            // 获取代理类型
-            const typeMatch = fullNode.match(/type:\s*(\w+)/);
-            const proxyType = typeMatch ? typeMatch[1] : 'vless';
-
-            // 根据代理类型确定要查找的字段
-            let credentialField = 'uuid';
-            if (proxyType === 'trojan') {
-                credentialField = 'password';
-            }
-
-            // 检查对应字段的值是否匹配
-            const credentialPattern = new RegExp(`${credentialField}:\\s*([^,}\\n]+)`);
-            const credentialMatch = fullNode.match(credentialPattern);
-
-            if (credentialMatch && credentialMatch[1].trim() === uuid.trim()) {
-                // 在最后一个}前添加ech-opts
-                fullNode = fullNode.replace(/\}(\s*)$/, `, ech-opts: {enable: true${ECH_SNI ? `, query-server-name: ${ECH_SNI}` : ''}}}$1`);
-            }
-
-            processedLines.push(fullNode);
-            i++;
-        }
-        // 处理块格式（Block）：- name: ..., 后续行为属性
-        else if (trimmedLine.startsWith('- name:')) {
-            // 收集完整的代理节点定义
-            let nodeLines = [line];
-            let baseIndent = line.search(/\S/);
-            let topLevelIndent = baseIndent + 2; // 顶级属性的缩进
-            i++;
-
-            // 继续读取这个节点的所有属性
-            while (i < lines.length) {
-                const nextLine = lines[i];
-                const nextTrimmed = nextLine.trim();
-
-                // 如果是空行，包含它但不继续
-                if (!nextTrimmed) {
-                    nodeLines.push(nextLine);
-                    i++;
-                    break;
-                }
-
-                const nextIndent = nextLine.search(/\S/);
-
-                // 如果缩进小于等于基础缩进且不是空行，说明节点结束了
-                if (nextIndent <= baseIndent && nextTrimmed.startsWith('- ')) {
-                    break;
-                }
-
-                // 如果缩进更小，节点也结束了
-                if (nextIndent < baseIndent && nextTrimmed) {
-                    break;
-                }
-
-                nodeLines.push(nextLine);
-                i++;
-            }
-
-            // 获取代理类型
-            const nodeText = nodeLines.join('\n');
-            const typeMatch = nodeText.match(/type:\s*(\w+)/);
-            const proxyType = typeMatch ? typeMatch[1] : 'vless';
-
-            // 根据代理类型确定要查找的字段
-            let credentialField = 'uuid';
-            if (proxyType === 'trojan') {
-                credentialField = 'password';
-            }
-
-            // 检查这个节点的对应字段是否匹配
-            const credentialPattern = new RegExp(`${credentialField}:\\s*([^\\n]+)`);
-            const credentialMatch = nodeText.match(credentialPattern);
-
-            if (credentialMatch && credentialMatch[1].trim() === uuid.trim()) {
-                // 找到在哪里插入ech-opts
-                // 策略：在最后一个顶级属性后面插入，或在ws-opts之前插入
-                let insertIndex = -1;
-
-                for (let j = nodeLines.length - 1; j >= 0; j--) {
-                    // 跳过空行，找到节点中最后一个非空行（可能是顶级属性或其子项）
-                    if (nodeLines[j].trim()) {
-                        insertIndex = j;
-                        break;
-                    }
-                }
-
-                if (insertIndex >= 0) {
-                    const indent = ' '.repeat(topLevelIndent);
-                    // 在节点末尾（最后一个属性块之后）插入 ech-opts 属性
-                    const echOptsLines = [
-                        `${indent}ech-opts:`,
-                        `${indent}  enable: true`
-                    ];
-                    if (ECH_SNI) echOptsLines.push(`${indent}  query-server-name: ${ECH_SNI}`);
-                    nodeLines.splice(insertIndex + 1, 0, ...echOptsLines);
-                }
-            }
-
-            processedLines.push(...nodeLines);
-        } else {
-            processedLines.push(line);
-            i++;
-        }
-    }
-
-    return processedLines.join('\n');
-}
-
-function Singbox订阅配置文件热补丁(SingBox_原始订阅内容, uuid = null, fingerprint = "chrome", ech_config = null) {
-    const sb_json_text = SingBox_原始订阅内容.replace('1.1.1.1', '8.8.8.8').replace('1.0.0.1', '8.8.4.4');
-    try {
-        let config = JSON.parse(sb_json_text);
-
-        // --- 1. TUN 入站迁移 (1.10.0+) ---
-        if (Array.isArray(config.inbounds)) {
-            config.inbounds.forEach(inbound => {
-                if (inbound.type === 'tun') {
-                    const addresses = [];
-                    if (inbound.inet4_address) addresses.push(inbound.inet4_address);
-                    if (inbound.inet6_address) addresses.push(inbound.inet6_address);
-                    if (addresses.length > 0) {
-                        inbound.address = addresses;
-                        delete inbound.inet4_address;
-                        delete inbound.inet6_address;
-                    }
-
-                    const route_addresses = [];
-                    if (Array.isArray(inbound.inet4_route_address)) route_addresses.push(...inbound.inet4_route_address);
-                    if (Array.isArray(inbound.inet6_route_address)) route_addresses.push(...inbound.inet6_route_address);
-                    if (route_addresses.length > 0) {
-                        inbound.route_address = route_addresses;
-                        delete inbound.inet4_route_address;
-                        delete inbound.inet6_route_address;
-                    }
-
-                    const route_exclude_addresses = [];
-                    if (Array.isArray(inbound.inet4_route_exclude_address)) route_exclude_addresses.push(...inbound.inet4_route_exclude_address);
-                    if (Array.isArray(inbound.inet6_route_exclude_address)) route_exclude_addresses.push(...inbound.inet6_route_exclude_address);
-                    if (route_exclude_addresses.length > 0) {
-                        inbound.route_exclude_address = route_exclude_addresses;
-                        delete inbound.inet4_route_exclude_address;
-                        delete inbound.inet6_route_exclude_address;
-                    }
-                }
-            });
-        }
-
-        // --- 2. 迁移 Geosite/GeoIP 到 rule_set (1.8.0+) 及 Actions (1.11.0+) ---
-        const ruleSetsDefinitions = new Map();
-        const processRules = (rules, isDns = false) => {
-            if (!Array.isArray(rules)) return;
-            rules.forEach(rule => {
-                if (rule.geosite) {
-                    const geositeList = Array.isArray(rule.geosite) ? rule.geosite : [rule.geosite];
-                    rule.rule_set = geositeList.map(name => {
-                        const tag = `geosite-${name}`;
-                        if (!ruleSetsDefinitions.has(tag)) {
-                            ruleSetsDefinitions.set(tag, {
-                                tag: tag,
-                                type: "remote",
-                                format: "binary",
-                                url: `https://gh.090227.xyz/https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-${name}.srs`,
-                                download_detour: "DIRECT"
-                            });
-                        }
-                        return tag;
-                    });
-                    delete rule.geosite;
-                }
-                if (rule.geoip) {
-                    const geoipList = Array.isArray(rule.geoip) ? rule.geoip : [rule.geoip];
-                    rule.rule_set = rule.rule_set || [];
-                    geoipList.forEach(name => {
-                        const tag = `geoip-${name}`;
-                        if (!ruleSetsDefinitions.has(tag)) {
-                            ruleSetsDefinitions.set(tag, {
-                                tag: tag,
-                                type: "remote",
-                                format: "binary",
-                                url: `https://gh.090227.xyz/https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-${name}.srs`,
-                                download_detour: "DIRECT"
-                            });
-                        }
-                        rule.rule_set.push(tag);
-                    });
-                    delete rule.geoip;
-                }
-                const targetField = isDns ? 'server' : 'outbound';
-                const actionValue = String(rule[targetField]).toUpperCase();
-                if (actionValue === 'REJECT' || actionValue === 'BLOCK') {
-                    rule.action = 'reject';
-                    rule.method = 'drop'; // 强制使用现代方式
-                    delete rule[targetField];
-                }
-            });
-        };
-
-        if (config.dns && config.dns.rules) processRules(config.dns.rules, true);
-        if (config.route && config.route.rules) processRules(config.route.rules, false);
-
-        if (ruleSetsDefinitions.size > 0) {
-            if (!config.route) config.route = {};
-            config.route.rule_set = Array.from(ruleSetsDefinitions.values());
-        }
-
-        // --- 3. 兼容性与纠错 ---
-        if (!config.outbounds) config.outbounds = [];
-
-        // 移除 outbounds 中冗余的 block 类型节点 (如果它们已经被 action 替代)
-        // 但保留 DIRECT 这种必需的特殊出站
-        config.outbounds = config.outbounds.filter(o => {
-            if (o.tag === 'REJECT' || o.tag === 'block') {
-                return false; // 移除，因为已经改用 action: reject 了
-            }
-            return true;
-        });
-
-        const existingOutboundTags = new Set(config.outbounds.map(o => o.tag));
-
-        if (!existingOutboundTags.has('DIRECT')) {
-            config.outbounds.push({ "type": "direct", "tag": "DIRECT" });
-            existingOutboundTags.add('DIRECT');
-        }
-
-        if (config.dns && config.dns.servers) {
-            const dnsServerTags = new Set(config.dns.servers.map(s => s.tag));
-            if (config.dns.rules) {
-                config.dns.rules.forEach(rule => {
-                    if (rule.server && !dnsServerTags.has(rule.server)) {
-                        if (rule.server === 'dns_block' && dnsServerTags.has('block')) {
-                            rule.server = 'block';
-                        } else if (rule.server.toLowerCase().includes('block') && !dnsServerTags.has(rule.server)) {
-                            config.dns.servers.push({ "tag": rule.server, "address": "rcode://success" });
-                            dnsServerTags.add(rule.server);
-                        }
-                    }
-                });
-            }
-        }
-
-        config.outbounds.forEach(outbound => {
-            if (outbound.type === 'selector' || outbound.type === 'urltest') {
-                if (Array.isArray(outbound.outbounds)) {
-                    // 修正：如果选择器引用了被移除的 REJECT/block，直接将其过滤掉
-                    // 因为路由规则已经通过 action 拦截了，不需要走选择器
-                    outbound.outbounds = outbound.outbounds.filter(tag => {
-                        const upperTag = tag.toUpperCase();
-                        return existingOutboundTags.has(tag) && upperTag !== 'REJECT' && upperTag !== 'BLOCK';
-                    });
-                    if (outbound.outbounds.length === 0) outbound.outbounds.push("DIRECT");
-                }
-            }
-        });
-
-        // --- 4. UUID 匹配节点的 TLS 热补丁 (utls & ech) ---
-        if (uuid) {
-            config.outbounds.forEach(outbound => {
-                // 仅处理包含 uuid 或 password 且匹配的节点
-                if ((outbound.uuid && outbound.uuid === uuid) || (outbound.password && outbound.password === uuid)) {
-                    // 确保 tls 对象存在
-                    if (!outbound.tls) {
-                        outbound.tls = { enabled: true };
-                    }
-
-                    // 添加/更新 utls 配置
-                    if (fingerprint) {
-                        outbound.tls.utls = {
-                            enabled: true,
-                            fingerprint: fingerprint
-                        };
-                    }
-
-                    // 如果提供了 ech_config，添加/更新 ech 配置
-                    if (ech_config) {
-                        outbound.tls.ech = {
-                            enabled: true,
-                            //query_server_name: "cloudflare-ech.com",// 等待 1.13.0+ 版本上线
-                            config: `-----BEGIN ECH CONFIGS-----\n${ech_config}\n-----END ECH CONFIGS-----`
-                        };
-                    }
-                }
-            });
-        }
-
-        return JSON.stringify(config, null, 2);
-    } catch (e) {
-        console.error("Singbox热补丁执行失败:", e);
-        return JSON.stringify(JSON.parse(sb_json_text), null, 2);
-    }
-}
-
-function Surge订阅配置文件热补丁(content, url, config_JSON) {
-    const 每行内容 = content.includes('\r\n') ? content.split('\r\n') : content.split('\n');
-
-    let 输出内容 = "";
-    for (let x of 每行内容) {
-        if (x.includes('= tro' + 'jan,') && !x.includes('ws=true') && !x.includes('ws-path=')) {
-            const host = x.split("sni=")[1].split(",")[0];
-            const 备改内容 = `sni=${host}, skip-cert-verify=${config_JSON.跳过证书验证}`;
-            const 正确内容 = `sni=${host}, skip-cert-verify=${config_JSON.跳过证书验证}, ws=true, ws-path=${config_JSON.随机路径 ? 随机路径(config_JSON.完整节点路径) : config_JSON.完整节点路径}, ws-headers=Host:"${host}"`;
-            输出内容 += x.replace(new RegExp(备改内容, 'g'), 正确内容).replace("[", "").replace("]", "") + '\n';
-        } else {
-            输出内容 += x + '\n';
-        }
-    }
-
-    输出内容 = `#!MANAGED-CONFIG ${url} interval=${config_JSON.优选订阅生成.SUBUpdateTime * 60 * 60} strict=false` + 输出内容.substring(输出内容.indexOf('\n'));
-    return 输出内容;
-}
 
 async function 请求日志记录(env, request, 访问IP, 请求类型 = "Get_SUB", config_JSON) {
     const KV容量限制 = 4;//MB
@@ -1316,163 +855,30 @@ function 批量替换域名(内容, hosts, 每组数量 = 2) {
     });
 }
 
-async function DoH查询(域名, 记录类型, DoH解析服务 = "https://cloudflare-dns.com/dns-query") {
-    const 开始时间 = performance.now();
-    console.log(`[DoH查询] 开始查询 ${域名} ${记录类型} via ${DoH解析服务}`);
-    try {
-        // 记录类型字符串转数值
-        const 类型映射 = { 'A': 1, 'NS': 2, 'CNAME': 5, 'MX': 15, 'TXT': 16, 'AAAA': 28, 'SRV': 33, 'HTTPS': 65 };
-        const qtype = 类型映射[记录类型.toUpperCase()] || 1;
-
-        // 编码域名为 DNS wire format labels
-        const 编码域名 = (name) => {
-            const parts = name.endsWith('.') ? name.slice(0, -1).split('.') : name.split('.');
-            const bufs = [];
-            for (const label of parts) {
-                const enc = new TextEncoder().encode(label);
-                bufs.push(new Uint8Array([enc.length]), enc);
-            }
-            bufs.push(new Uint8Array([0]));
-            const total = bufs.reduce((s, b) => s + b.length, 0);
-            const result = new Uint8Array(total);
-            let off = 0;
-            for (const b of bufs) { result.set(b, off); off += b.length; }
-            return result;
-        };
-
-        // 构建 DNS 查询报文
-        const qname = 编码域名(域名);
-        const query = new Uint8Array(12 + qname.length + 4);
-        const qview = new DataView(query.buffer);
-        qview.setUint16(0, 0);       // ID
-        qview.setUint16(2, 0x0100);  // Flags: RD=1 (递归查询)
-        qview.setUint16(4, 1);       // QDCOUNT
-        query.set(qname, 12);
-        qview.setUint16(12 + qname.length, qtype);
-        qview.setUint16(12 + qname.length + 2, 1); // QCLASS = IN
-
-        // 通过 POST 发送 dns-message 请求
-        console.log(`[DoH查询] 发送查询报文 ${域名} via ${DoH解析服务} (type=${qtype}, ${query.length}字节)`);
-        const response = await fetch(DoH解析服务, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/dns-message',
-                'Accept': 'application/dns-message',
-            },
-            body: query,
-        });
-        if (!response.ok) {
-            console.warn(`[DoH查询] 请求失败 ${域名} ${记录类型} via ${DoH解析服务} 响应代码:${response.status}`);
-            return [];
-        }
-
-        // 解析 DNS 响应报文
-        const buf = new Uint8Array(await response.arrayBuffer());
-        const dv = new DataView(buf.buffer);
-        const qdcount = dv.getUint16(4);
-        const ancount = dv.getUint16(6);
-        console.log(`[DoH查询] 收到响应 ${域名} ${记录类型} via ${DoH解析服务} (${buf.length}字节, ${ancount}条应答)`);
-
-        // 解析域名（处理指针压缩）
-        const 解析域名 = (pos) => {
-            const labels = [];
-            let p = pos, jumped = false, endPos = -1, safe = 128;
-            while (p < buf.length && safe-- > 0) {
-                const len = buf[p];
-                if (len === 0) { if (!jumped) endPos = p + 1; break; }
-                if ((len & 0xC0) === 0xC0) {
-                    if (!jumped) endPos = p + 2;
-                    p = ((len & 0x3F) << 8) | buf[p + 1];
-                    jumped = true;
-                    continue;
-                }
-                labels.push(new TextDecoder().decode(buf.slice(p + 1, p + 1 + len)));
-                p += len + 1;
-            }
-            if (endPos === -1) endPos = p + 1;
-            return [labels.join('.'), endPos];
-        };
-
-        // 跳过 Question Section
-        let offset = 12;
-        for (let i = 0; i < qdcount; i++) {
-            const [, end] = 解析域名(offset);
-            offset = /** @type {number} */ (end) + 4; // +4 跳过 QTYPE + QCLASS
-        }
-
-        // 解析 Answer Section
-        const answers = [];
-        for (let i = 0; i < ancount && offset < buf.length; i++) {
-            const [name, nameEnd] = 解析域名(offset);
-            offset = /** @type {number} */ (nameEnd);
-            const type = dv.getUint16(offset); offset += 2;
-            offset += 2; // CLASS
-            const ttl = dv.getUint32(offset); offset += 4;
-            const rdlen = dv.getUint16(offset); offset += 2;
-            const rdata = buf.slice(offset, offset + rdlen);
-            offset += rdlen;
-
-            let data;
-            if (type === 1 && rdlen === 4) {
-                // A 记录
-                data = `${rdata[0]}.${rdata[1]}.${rdata[2]}.${rdata[3]}`;
-            } else if (type === 28 && rdlen === 16) {
-                // AAAA 记录
-                const segs = [];
-                for (let j = 0; j < 16; j += 2) segs.push(((rdata[j] << 8) | rdata[j + 1]).toString(16));
-                data = segs.join(':');
-            } else if (type === 16) {
-                // TXT 记录 (长度前缀字符串)
-                let tOff = 0;
-                const parts = [];
-                while (tOff < rdlen) {
-                    const tLen = rdata[tOff++];
-                    parts.push(new TextDecoder().decode(rdata.slice(tOff, tOff + tLen)));
-                    tOff += tLen;
-                }
-                data = parts.join('');
-            } else if (type === 5) {
-                // CNAME 记录
-                const [cname] = 解析域名(offset - rdlen);
-                data = cname;
-            } else {
-                data = Array.from(rdata).map(b => b.toString(16).padStart(2, '0')).join('');
-            }
-            answers.push({ name, type, TTL: ttl, data, rdata });
-        }
-        const 耗时 = (performance.now() - 开始时间).toFixed(2);
-        console.log(`[DoH查询] 查询完成 ${域名} ${记录类型} via ${DoH解析服务} ${耗时}ms 共${answers.length}条结果${answers.length > 0 ? '\n' + answers.map((a, i) => `  ${i + 1}. ${a.name} type=${a.type} TTL=${a.TTL} data=${a.data}`).join('\n') : ''}`);
-        return answers;
-    } catch (error) {
-        const 耗时 = (performance.now() - 开始时间).toFixed(2);
-        console.error(`[DoH查询] 查询失败 ${域名} ${记录类型} via ${DoH解析服务} ${耗时}ms:`, error);
-        return [];
-    }
-}
-
 async function getECH(host) {
     try {
-        const answers = await DoH查询(host, 'HTTPS');
-        if (!answers.length) return '';
-        for (const ans of answers) {
-            if (ans.type !== 65 || !ans.rdata) continue;
-            const bytes = ans.rdata;
-            // 解析 SVCB/HTTPS rdata: SvcPriority(2) + TargetName(variable) + SvcParams
-            let offset = 2; // 跳过 SvcPriority
-            // 跳过 TargetName (域名编码)
-            while (offset < bytes.length) {
-                const len = bytes[offset];
-                if (len === 0) { offset++; break; }
-                offset += len + 1;
-            }
-            // 遍历 SvcParams 键值对
-            while (offset + 4 <= bytes.length) {
-                const key = (bytes[offset] << 8) | bytes[offset + 1];
-                const len = (bytes[offset + 2] << 8) | bytes[offset + 3];
-                offset += 4;
-                // key=5 是 ECH (Encrypted Client Hello)
-                if (key === 5) return btoa(String.fromCharCode(...bytes.slice(offset, offset + len)));
-                offset += len;
+        const res = await fetch(`https://1.1.1.1/dns-query?name=${encodeURIComponent(host)}&type=65`, { headers: { 'accept': 'application/dns-json' } });
+        const data = await res.json();
+        if (!data.Answer?.length) return '';
+        for (let ans of data.Answer) {
+            if (ans.type !== 65 || !ans.data) continue;
+            const match = ans.data.match(/ech=([^\s]+)/);
+            if (match) return match[1].replace(/"/g, '');
+            if (ans.data.startsWith('\\#')) {
+                const hex = ans.data.split(' ').slice(2).join('');
+                const bytes = new Uint8Array(hex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+                let offset = 2;
+                while (offset < bytes.length && bytes[offset++] !== 0)
+                    offset += bytes[offset - 1];
+
+                while (offset + 4 <= bytes.length) {
+                    const key = (bytes[offset] << 8) | bytes[offset + 1];
+                    const len = (bytes[offset + 2] << 8) | bytes[offset + 3];
+                    offset += 4;
+
+                    if (key === 5) return btoa(String.fromCharCode(...bytes.slice(offset, offset + len)));
+                    offset += len;
+                }
             }
         }
         return '';
@@ -1482,84 +888,52 @@ async function getECH(host) {
 }
 
 async function 读取config_JSON(env, hostname, userID, 重置配置 = false) {
-    //const host = 随机替换通配符(hostname);
     const _p = atob("UFJPWFlJUA==");
-    const host = hostname, CM_DoH = "https://doh.cmliussss.net/CMLiussss", 占位符 = '{{IP:PORT}}', 初始化开始时间 = performance.now(), 默认配置JSON = {
+    const host = hostname, CM_DoH = "https://doh.cmliussss.net/CMLiussss", 占位符 = '{{IP:PORT}}', 初始化开始时间 = performance.now();
+    
+    // 默认配置中删除了 订阅转换配置
+    const 默认配置JSON = {
         TIME: new Date().toISOString(),
         HOST: host,
         HOSTS: [hostname],
         UUID: userID,
         PATH: "/",
-        协议类型: "v" + "le" + "ss",
+        协议类型: "vless",
         传输协议: "ws",
         跳过证书验证: false,
         启用0RTT: false,
         TLS分片: null,
         随机路径: false,
         ECH: false,
-        ECHConfig: {
-            DNS: CM_DoH,
-            SNI: null,
-        },
+        ECHConfig: { DNS: CM_DoH, SNI: null },
         Fingerprint: "chrome",
         优选订阅生成: {
-            local: true, // true: 基于本地的优选地址  false: 优选订阅生成器
+            local: true,
             本地IP库: {
-                随机IP: true, // 当 随机IP 为true时生效，启用随机IP的数量，否则使用KV内的ADD.txt
+                随机IP: true, 
                 随机数量: 16,
                 指定端口: -1,
             },
             SUB: null,
             SUBNAME: "edge" + "tunnel",
-            SUBUpdateTime: 3, // 订阅更新时间（小时）
+            SUBUpdateTime: 3,
             TOKEN: await MD5MD5(hostname + userID),
         },
-        订阅转换配置: {
-            SUBAPI: "https://SUBAPI.cmliussss.net",
-            SUBCONFIG: "https://raw.githubusercontent.com/cmliu/ACL4SSR/refs/heads/main/Clash/config/ACL4SSR_Online_Mini_MultiMode_CF.ini",
-            SUBEMOJI: false,
-        },
+        // 已删除 订阅转换配置 ...
         反代: {
             [_p]: "auto",
-            SOCKS5: {
-                启用: 启用SOCKS5反代,
-                全局: 启用SOCKS5全局反代,
-                账号: 我的SOCKS5账号,
-                白名单: SOCKS5白名单,
-            },
+            SOCKS5: { 启用: false, 全局: false, 账号: '', 白名单: [] },
             路径模板: {
                 [_p]: "proxyip=" + 占位符,
-                SOCKS5: {
-                    全局: "socks5://" + 占位符,
-                    标准: "socks5=" + 占位符
-                },
-                HTTP: {
-                    全局: "http://" + 占位符,
-                    标准: "http=" + 占位符
-                },
+                SOCKS5: { 全局: "socks5://" + 占位符, 标准: "socks5=" + 占位符 },
+                HTTP: { 全局: "http://" + 占位符, 标准: "http=" + 占位符 },
             },
         },
-        TG: {
-            启用: false,
-            BotToken: null,
-            ChatID: null,
-        },
-        CF: {
-            Email: null,
-            GlobalAPIKey: null,
-            AccountID: null,
-            APIToken: null,
-            UsageAPI: null,
-            Usage: {
-                success: false,
-                pages: 0,
-                workers: 0,
-                total: 0,
-                max: 100000,
-            },
-        }
+        TG: { 启用: false, BotToken: null, ChatID: null },
+        CF: { Email: null, GlobalAPIKey: null, AccountID: null, APIToken: null, UsageAPI: null, Usage: { success: false, pages: 0, workers: 0, total: 0, max: 100000 } }
     };
 
+    let config_JSON;
     try {
         let configJSON = await env.KV.get('config.json');
         if (!configJSON || 重置配置 == true) {
@@ -1569,36 +943,27 @@ async function 读取config_JSON(env, hostname, userID, 重置配置 = false) {
             config_JSON = JSON.parse(configJSON);
         }
     } catch (error) {
-        console.error(`读取config_JSON出错: ${error.message}`);
         config_JSON = 默认配置JSON;
     }
 
+    // 确保必要字段存在
     config_JSON.HOST = host;
     if (!config_JSON.HOSTS) config_JSON.HOSTS = [hostname];
     if (env.HOST) config_JSON.HOSTS = (await 整理成数组(env.HOST)).map(h => h.toLowerCase().replace(/^https?:\/\//, '').split('/')[0].split(':')[0]);
     config_JSON.UUID = userID;
-    if (!config_JSON.随机路径) config_JSON.随机路径 = false;
-    if (!config_JSON.启用0RTT) config_JSON.启用0RTT = false;
-
     if (env.PATH) config_JSON.PATH = env.PATH.startsWith('/') ? env.PATH : '/' + env.PATH;
     else if (!config_JSON.PATH) config_JSON.PATH = '/';
 
+    // 路径反代逻辑
     if (!config_JSON.反代.路径模板?.[_p]) {
         config_JSON.反代.路径模板 = {
             [_p]: "proxyip=" + 占位符,
-            SOCKS5: {
-                全局: "socks5://" + 占位符,
-                标准: "socks5=" + 占位符
-            },
-            HTTP: {
-                全局: "http://" + 占位符,
-                标准: "http=" + 占位符
-            },
+            SOCKS5: { 全局: "socks5://" + 占位符, 标准: "socks5=" + 占位符 },
+            HTTP: { 全局: "http://" + 占位符, 标准: "http=" + 占位符 },
         };
     }
 
     const 代理配置 = config_JSON.反代.路径模板[config_JSON.反代.SOCKS5.启用?.toUpperCase()];
-
     let 路径反代参数 = '';
     if (代理配置 && config_JSON.反代.SOCKS5.账号) 路径反代参数 = (config_JSON.反代.SOCKS5.全局 ? 代理配置.全局 : 代理配置.标准).replace(占位符, config_JSON.反代.SOCKS5.账号);
     else if (config_JSON.反代[_p] !== 'auto') 路径反代参数 = config_JSON.反代.路径模板[_p].replace(占位符, config_JSON.反代[_p]);
@@ -1617,60 +982,7 @@ async function 读取config_JSON(env, hostname, userID, 重置配置 = false) {
     const 最终查询部分 = 反代查询参数 ? (查询部分 ? 查询部分 + '&' + 反代查询参数 : '?' + 反代查询参数) : 查询部分;
     config_JSON.完整节点路径 = (路径部分 || '/') + (路径部分 && 路径反代参数 ? '/' : '') + 路径反代参数 + 最终查询部分 + (config_JSON.启用0RTT ? (最终查询部分 ? '&' : '?') + 'ed=2560' : '');
 
-    if (!config_JSON.TLS分片 && config_JSON.TLS分片 !== null) config_JSON.TLS分片 = null;
-    const TLS分片参数 = config_JSON.TLS分片 == 'Shadowrocket' ? `&fragment=${encodeURIComponent('1,40-60,30-50,tlshello')}` : config_JSON.TLS分片 == 'Happ' ? `&fragment=${encodeURIComponent('3,1,tlshello')}` : '';
-    if (!config_JSON.Fingerprint) config_JSON.Fingerprint = "chrome";
-    if (!config_JSON.ECH) config_JSON.ECH = false;
-    if (!config_JSON.ECHConfig) config_JSON.ECHConfig = { DNS: CM_DoH, SNI: null };
-    const ECHLINK参数 = config_JSON.ECH ? `&ech=${encodeURIComponent((config_JSON.ECHConfig.SNI ? config_JSON.ECHConfig.SNI + '+' : '') + config_JSON.ECHConfig.DNS)}` : '';
-    config_JSON.LINK = `${config_JSON.协议类型}://${userID}@${host}:443?security=tls&type=${config_JSON.传输协议 + ECHLINK参数}&host=${host}&fp=${config_JSON.Fingerprint}&sni=${host}&path=${encodeURIComponent(config_JSON.随机路径 ? 随机路径(config_JSON.完整节点路径) : config_JSON.完整节点路径) + TLS分片参数}&encryption=none${config_JSON.跳过证书验证 ? '&insecure=1&allowInsecure=1' : ''}#${encodeURIComponent(config_JSON.优选订阅生成.SUBNAME)}`;
     config_JSON.优选订阅生成.TOKEN = await MD5MD5(hostname + userID);
-
-    const 初始化TG_JSON = { BotToken: null, ChatID: null };
-    config_JSON.TG = { 启用: config_JSON.TG.启用 ? config_JSON.TG.启用 : false, ...初始化TG_JSON };
-    try {
-        const TG_TXT = await env.KV.get('tg.json');
-        if (!TG_TXT) {
-            await env.KV.put('tg.json', JSON.stringify(初始化TG_JSON, null, 2));
-        } else {
-            const TG_JSON = JSON.parse(TG_TXT);
-            config_JSON.TG.ChatID = TG_JSON.ChatID ? TG_JSON.ChatID : null;
-            config_JSON.TG.BotToken = TG_JSON.BotToken ? 掩码敏感信息(TG_JSON.BotToken) : null;
-        }
-    } catch (error) {
-        console.error(`读取tg.json出错: ${error.message}`);
-    }
-
-    const 初始化CF_JSON = { Email: null, GlobalAPIKey: null, AccountID: null, APIToken: null, UsageAPI: null };
-    config_JSON.CF = { ...初始化CF_JSON, Usage: { success: false, pages: 0, workers: 0, total: 0, max: 100000 } };
-    try {
-        const CF_TXT = await env.KV.get('cf.json');
-        if (!CF_TXT) {
-            await env.KV.put('cf.json', JSON.stringify(初始化CF_JSON, null, 2));
-        } else {
-            const CF_JSON = JSON.parse(CF_TXT);
-            if (CF_JSON.UsageAPI) {
-                try {
-                    const response = await fetch(CF_JSON.UsageAPI);
-                    const Usage = await response.json();
-                    config_JSON.CF.Usage = Usage;
-                } catch (err) {
-                    console.error(`请求 CF_JSON.UsageAPI 失败: ${err.message}`);
-                }
-            } else {
-                config_JSON.CF.Email = CF_JSON.Email ? CF_JSON.Email : null;
-                config_JSON.CF.GlobalAPIKey = CF_JSON.GlobalAPIKey ? 掩码敏感信息(CF_JSON.GlobalAPIKey) : null;
-                config_JSON.CF.AccountID = CF_JSON.AccountID ? 掩码敏感信息(CF_JSON.AccountID) : null;
-                config_JSON.CF.APIToken = CF_JSON.APIToken ? 掩码敏感信息(CF_JSON.APIToken) : null;
-                config_JSON.CF.UsageAPI = null;
-                const Usage = await getCloudflareUsage(CF_JSON.Email, CF_JSON.GlobalAPIKey, CF_JSON.AccountID, CF_JSON.APIToken);
-                config_JSON.CF.Usage = Usage;
-            }
-        }
-    } catch (error) {
-        console.error(`读取cf.json出错: ${error.message}`);
-    }
-
     config_JSON.加载时间 = (performance.now() - 初始化开始时间).toFixed(2) + 'ms';
     return config_JSON;
 }
@@ -1733,71 +1045,11 @@ function base64Decode(str) {
     return decoder.decode(bytes);
 }
 
-async function 获取优选订阅生成器数据(优选订阅生成器HOST) {
-    let 优选IP = [], 其他节点LINK = '', 格式化HOST = 优选订阅生成器HOST.replace(/^sub:\/\//i, 'https://');
-    if (!/^https?:\/\//i.test(格式化HOST)) 格式化HOST = `https://${格式化HOST}`;
-
-    try {
-        const url = new URL(格式化HOST);
-        格式化HOST = url.origin;
-    } catch (error) {
-        优选IP.push(`127.0.0.1:1234#${优选订阅生成器HOST}优选订阅生成器格式化异常:${error.message}`);
-        return [优选IP, 其他节点LINK];
-    }
-
-    const 优选订阅生成器URL = `${格式化HOST}/sub?host=example.com&uuid=00000000-0000-4000-8000-000000000000`;
-
-    try {
-        const response = await fetch(优选订阅生成器URL, {
-            headers: { 'User-Agent': 'v2rayN/edge' + 'tunnel (https://github.com/cmliu/edge' + 'tunnel)' }
-        });
-
-        if (!response.ok) {
-            优选IP.push(`127.0.0.1:1234#${优选订阅生成器HOST}优选订阅生成器异常:${response.statusText}`);
-            return [优选IP, 其他节点LINK];
-        }
-
-        const 优选订阅生成器返回订阅内容 = atob(await response.text());
-        const 订阅行列表 = 优选订阅生成器返回订阅内容.includes('\r\n')
-            ? 优选订阅生成器返回订阅内容.split('\r\n')
-            : 优选订阅生成器返回订阅内容.split('\n');
-
-        for (const 行内容 of 订阅行列表) {
-            if (!行内容.trim()) continue; // 跳过空行
-            if (行内容.includes('00000000-0000-4000-8000-000000000000') && 行内容.includes('example.com')) {
-                // 这是优选IP行，提取 域名:端口#备注
-                const 地址匹配 = 行内容.match(/:\/\/[^@]+@([^?]+)/);
-                if (地址匹配) {
-                    let 地址端口 = 地址匹配[1], 备注 = ''; // 域名:端口 或 IP:端口
-                    const 备注匹配 = 行内容.match(/#(.+)$/);
-                    if (备注匹配) 备注 = '#' + decodeURIComponent(备注匹配[1]);
-                    优选IP.push(地址端口 + 备注);
-                }
-            } else {
-                其他节点LINK += 行内容 + '\n';
-            }
-        }
-    } catch (error) {
-        优选IP.push(`127.0.0.1:1234#${优选订阅生成器HOST}优选订阅生成器异常:${error.message}`);
-    }
-
-    return [优选IP, 其他节点LINK];
-}
-
 async function 请求优选API(urls, 默认端口 = '443', 超时时间 = 3000) {
     if (!urls?.length) return [[], [], []];
     const results = new Set();
     let 订阅链接响应的明文LINK内容 = '', 需要订阅转换订阅URLs = [];
     await Promise.allSettled(urls.map(async (url) => {
-        if (url.toLowerCase().startsWith('sub://')) {
-            try {
-                const [优选IP, 其他节点LINK] = await 获取优选订阅生成器数据(url);
-                for (const ip of 优选IP) results.add(ip);
-                if (其他节点LINK) 订阅链接响应的明文LINK内容 += 其他节点LINK;
-            } catch (e) { }
-            return;
-        }
-
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 超时时间);
@@ -2138,6 +1390,19 @@ function sha224(s) {
 async function 解析地址端口(proxyIP, 目标域名 = 'dash.cloudflare.com', UUID = '00000000-0000-4000-8000-000000000000') {
     if (!缓存反代IP || !缓存反代解析数组 || 缓存反代IP !== proxyIP) {
         proxyIP = proxyIP.toLowerCase();
+        async function DoH查询(域名, 记录类型) {
+            try {
+                const response = await fetch(`https://1.1.1.1/dns-query?name=${域名}&type=${记录类型}`, {
+                    headers: { 'Accept': 'application/dns-json' }
+                });
+                if (!response.ok) return [];
+                const data = await response.json();
+                return data.Answer || [];
+            } catch (error) {
+                console.error(`DoH查询失败 (${记录类型}):`, error);
+                return [];
+            }
+        }
 
         function 解析地址端口字符串(str) {
             let 地址 = str, 端口 = 443;
@@ -2157,13 +1422,8 @@ async function 解析地址端口(proxyIP, 目标域名 = 'dash.cloudflare.com',
 
         if (proxyIP.includes('.william')) {
             try {
-                let txtRecords = await DoH查询(proxyIP, 'TXT');
-                let txtData = txtRecords.filter(r => r.type === 16).map(r => /** @type {string} */ (r.data));
-                if (txtData.length === 0) {
-                    console.log(`[反代解析] 默认DoH未获取到TXT记录，切换Google DoH重试 ${proxyIP}`);
-                    txtRecords = await DoH查询(proxyIP, 'TXT', 'https://dns.google/dns-query');
-                    txtData = txtRecords.filter(r => r.type === 16).map(r => /** @type {string} */ (r.data));
-                }
+                const txtRecords = await DoH查询(proxyIP, 'TXT');
+                const txtData = txtRecords.filter(r => r.type === 16).map(r => r.data);
                 if (txtData.length > 0) {
                     let data = txtData[0];
                     if (data.startsWith('"') && data.endsWith('"')) data = data.slice(1, -1);
@@ -2187,26 +1447,14 @@ async function 解析地址端口(proxyIP, 目标域名 = 'dash.cloudflare.com',
 
             if (!ipv4Regex.test(地址) && !ipv6Regex.test(地址)) {
                 // 并行查询 A 和 AAAA 记录
-                let [aRecords, aaaaRecords] = await Promise.all([
+                const [aRecords, aaaaRecords] = await Promise.all([
                     DoH查询(地址, 'A'),
                     DoH查询(地址, 'AAAA')
                 ]);
 
-                let ipv4List = aRecords.filter(r => r.type === 1).map(r => r.data);
-                let ipv6List = aaaaRecords.filter(r => r.type === 28).map(r => `[${r.data}]`);
-                let ipAddresses = [...ipv4List, ...ipv6List];
-
-                // 默认DoH无结果时，切换Google DoH重试
-                if (ipAddresses.length === 0) {
-                    console.log(`[反代解析] 默认DoH未获取到解析结果，切换Google DoH重试 ${地址}`);
-                    [aRecords, aaaaRecords] = await Promise.all([
-                        DoH查询(地址, 'A', 'https://dns.google/dns-query'),
-                        DoH查询(地址, 'AAAA', 'https://dns.google/dns-query')
-                    ]);
-                    ipv4List = aRecords.filter(r => r.type === 1).map(r => r.data);
-                    ipv6List = aaaaRecords.filter(r => r.type === 28).map(r => `[${r.data}]`);
-                    ipAddresses = [...ipv4List, ...ipv6List];
-                }
+                const ipv4List = aRecords.filter(r => r.type === 1).map(r => r.data);
+                const ipv6List = aaaaRecords.filter(r => r.type === 28).map(r => `[${r.data}]`);
+                const ipAddresses = [...ipv4List, ...ipv6List];
 
                 所有反代数组 = ipAddresses.length > 0
                     ? ipAddresses.map(ip => [ip, 端口])
@@ -2288,11 +1536,7 @@ async function html1101(host, 访问IP) {
     const 随机字符串 = Array.from(crypto.getRandomValues(new Uint8Array(8))).map(b => b.toString(16).padStart(2, '0')).join('');
 
     return `<!DOCTYPE html>
-<!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en-US"> <![endif]-->
-<!--[if IE 7]>    <html class="no-js ie7 oldie" lang="en-US"> <![endif]-->
-<!--[if IE 8]>    <html class="no-js ie8 oldie" lang="en-US"> <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en-US"> <!--<![endif]-->
-<head>
+<html class="no-js" lang="en-US"> <head>
 <title>Worker threw exception | ${host} | Cloudflare</title>
 <meta charset="UTF-8" />
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
@@ -2300,11 +1544,9 @@ async function html1101(host, 访问IP) {
 <meta name="robots" content="noindex, nofollow" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <link rel="stylesheet" id="cf_styles-css" href="/cdn-cgi/styles/cf.errors.css" />
-<!--[if lt IE 9]><link rel="stylesheet" id='cf_styles-ie-css' href="/cdn-cgi/styles/cf.errors.ie.css" /><![endif]-->
 <style>body{margin:0;padding:0}</style>
 
 
-<!--[if gte IE 10]><!-->
 <script>
   if (!navigator.cookieEnabled) {
     window.addEventListener('DOMContentLoaded', function () {
@@ -2313,8 +1555,6 @@ async function html1101(host, 访问IP) {
     })
   }
 </script>
-<!--<![endif]-->
-
 </head>
 <body>
     <div id="cf-wrapper">
@@ -2327,11 +1567,7 @@ async function html1101(host, 访问IP) {
                     <small class="heading-ray-id">Ray ID: ${随机字符串} &bull; ${格式化时间戳} UTC</small>
                 </h1>
                 <h2 class="cf-subheadline" data-translate="error_desc">Worker threw exception</h2>
-            </div><!-- /.header -->
-    
-            <section></section><!-- spacer -->
-    
-            <div class="cf-section cf-wrapper">
+            </div><section></section><div class="cf-section cf-wrapper">
                 <div class="cf-columns two">
                     <div class="cf-column">
                         <h2 data-translate="what_happened">What happened?</h2>
@@ -2344,9 +1580,7 @@ async function html1101(host, 访问IP) {
                     </div>
                     
                 </div>
-            </div><!-- /.section -->
-    
-            <div class="cf-error-footer cf-wrapper w-240 lg:w-full py-10 sm:py-4 sm:px-8 mx-auto text-center sm:text-left border-solid border-0 border-t border-gray-300">
+            </div><div class="cf-error-footer cf-wrapper w-240 lg:w-full py-10 sm:py-4 sm:px-8 mx-auto text-center sm:text-left border-solid border-0 border-t border-gray-300">
     <p class="text-13">
       <span class="cf-footer-item sm:block sm:mb-1">Cloudflare Ray ID: <strong class="font-semibold"> ${随机字符串}</strong></span>
       <span class="cf-footer-separator sm:hidden">&bull;</span>
@@ -2356,16 +1590,11 @@ async function html1101(host, 访问IP) {
         <span class="hidden" id="cf-footer-ip">${访问IP}</span>
         <span class="cf-footer-separator sm:hidden">&bull;</span>
       </span>
-      <span class="cf-footer-item sm:block sm:mb-1"><span>Performance &amp; security by</span> <a rel="noopener noreferrer" href="https://www.cloudflare.com/5xx-error-landing" id="brand_link" target="_blank">Cloudflare</a></span>
+      <span class=\"cf-footer-item sm:block sm:mb-1\"><span>Performance &amp; security by</span> <a rel=\"noopener noreferrer\" href=\"https://www.cloudflare.com/5xx-error-landing\" id=\"brand_link\" target=\"_blank\">Cloudflare</a></span>
       
     </p>
     <script>(function(){function d(){var b=a.getElementById("cf-footer-item-ip"),c=a.getElementById("cf-footer-ip-reveal");b&&"classList"in b&&(b.classList.remove("hidden"),c.addEventListener("click",function(){c.classList.add("hidden");a.getElementById("cf-footer-ip").classList.remove("hidden")}))}var a=document;document.addEventListener&&a.addEventListener("DOMContentLoaded",d)})();</script>
-  </div><!-- /.error-footer -->
-
-        </div><!-- /#cf-error-details -->
-    </div><!-- /#cf-wrapper -->
-
-     <script>
+  </div></div></div><script>
     window._cf_translation = {};
     
     
