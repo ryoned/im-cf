@@ -238,44 +238,34 @@ export default {
                         if (订阅类型 === 'mixed') {
                             const TLS分片参数 = config_JSON.TLS分片 == 'Shadowrocket' ? `&fragment=${encodeURIComponent('1,40-60,30-50,tlshello')}` : config_JSON.TLS分片 == 'Happ' ? `&fragment=${encodeURIComponent('3,1,tlshello')}` : '';
                             let 完整优选IP = [], 其他节点LINK = '';
-// ===== 极简手动模式：只从 ADD.txt 读取，其他什么都不管 =====
-// 直接从 KV 读取 ADD.txt
-const 完整优选列表 = await env.KV.get('ADD.txt') 
-    ? await 整理成数组(await env.KV.get('ADD.txt')) 
-    : [];
 
-// 如果 ADD.txt 为空，给出提示（可选）
-if (完整优选列表.length === 0) {
-    console.log('请先在 ADD.txt 中填写自定义IP');
-    return new Response('请先在 ADD.txt 中填写自定义IP', { status: 400 });
-}
-
-// 解析 IP 列表（保持原有解析逻辑不变）
-const 优选API = [], 优选IP = [], 其他节点 = [];
-for (const 元素 of 完整优选列表) {
-    if (元素.toLowerCase().startsWith('sub://')) {
-        优选API.push(元素);
-    } else {
-        const subMatch = 元素.match(/sub\s*=\s*([^\s&#]+)/i);
-        if (subMatch) {
-            优选API.push('sub://' + subMatch[1].trim());
-        } else if (元素.toLowerCase().startsWith('https://')) {
-            优选API.push(元素);
-        } else if (元素.toLowerCase().includes('://')) {
-            if (元素.includes('#')) {
-                const 地址备注分离 = 元素.split('#');
-                其他节点.push(地址备注分离[0] + '#' + encodeURIComponent(decodeURIComponent(地址备注分离[1])));
-            } else 其他节点.push(元素);
-        } else {
-            优选IP.push(元素);
-        }
-    }
-}
-const 请求优选API内容 = await 请求优选API(优选API);
-const 合并其他节点数组 = [...new Set(其他节点.concat(请求优选API内容[1]))];
-其他节点LINK = 合并其他节点数组.length > 0 ? 合并其他节点数组.join('\n') + '\n' : '';
-const 优选API的IP = 请求优选API内容[0];
-完整优选IP = [...new Set(优选IP.concat(优选API的IP))];
+                            if (!url.searchParams.has('sub') && config_JSON.优选订阅生成.local) { // 本地生成订阅
+                                const 完整优选列表 = config_JSON.优选订阅生成.本地IP库.随机IP ? (await 生成随机IP(request, config_JSON.优选订阅生成.本地IP库.随机数量, config_JSON.优选订阅生成.本地IP库.指定端口))[0] : await env.KV.get('ADD.txt') ? await 整理成数组(await env.KV.get('ADD.txt')) : (await 生成随机IP(request, config_JSON.优选订阅生成.本地IP库.随机数量, config_JSON.优选订阅生成.本地IP库.指定端口))[0];
+                                const 优选API = [], 优选IP = [], 其他节点 = [];
+                                for (const 元素 of 完整优选列表) {
+                                    if (元素.toLowerCase().startsWith('sub://')) {
+                                        优选API.push(元素);
+                                    } else {
+                                        const subMatch = 元素.match(/sub\s*=\s*([^\s&#]+)/i);
+                                        if (subMatch) {
+                                            优选API.push('sub://' + subMatch[1].trim());
+                                        } else if (元素.toLowerCase().startsWith('https://')) {
+                                            优选API.push(元素);
+                                        } else if (元素.toLowerCase().includes('://')) {
+                                            if (元素.includes('#')) {
+                                                const 地址备注分离 = 元素.split('#');
+                                                其他节点.push(地址备注分离[0] + '#' + encodeURIComponent(decodeURIComponent(地址备注分离[1])));
+                                            } else 其他节点.push(元素);
+                                        } else {
+                                            优选IP.push(元素);
+                                        }
+                                    }
+                                }
+                                const 请求优选API内容 = await 请求优选API(优选API);
+                                const 合并其他节点数组 = [...new Set(其他节点.concat(请求优选API内容[1]))];
+                                其他节点LINK = 合并其他节点数组.length > 0 ? 合并其他节点数组.join('\n') + '\n' : '';
+                                const 优选API的IP = 请求优选API内容[0];
+                                完整优选IP = [...new Set(优选IP.concat(优选API的IP))];
                             } else { // 优选订阅生成器
                                 let 优选订阅生成器HOST = url.searchParams.get('sub') || config_JSON.优选订阅生成.SUB;
                                 const [优选生成器IP数组, 优选生成器其他节点] = await 获取优选订阅生成器数据(优选订阅生成器HOST);
@@ -1515,8 +1505,8 @@ async function 读取config_JSON(env, hostname, userID, 重置配置 = false) {
         优选订阅生成: {
             local: true, // true: 基于本地的优选地址  false: 优选订阅生成器
             本地IP库: {
-                随机IP: true, // 当 随机IP 为true时生效，启用随机IP的数量，否则使用KV内的ADD.txt
-                随机数量: 16,
+                随机IP: false, // 当 随机IP 为true时生效，启用随机IP的数量，否则使用KV内的ADD.txt
+                随机数量: 6,
                 指定端口: -1,
             },
             SUB: null,
@@ -2383,4 +2373,3 @@ async function html1101(host, 访问IP) {
 </body>
 </html>`;
 }
-
